@@ -21,6 +21,7 @@
   "access": "browser",
   "data_info": {
     "mode": "snapshot",
-    "detail": "A daily build fetches NASA APOD, NeoWs, DONKI, EPIC and EONET data plus NOAA's Kp forecast; aurora thresholds for your places are calculated in the browser."
+    "detail": "A daily build fetches NASA APOD, NeoWs, DONKI, EPIC and EONET data plus NOAA's Kp forecast; aurora thresholds for your places are calculated in the browser.",
+    "cadence": "Daily"
   }
 }
