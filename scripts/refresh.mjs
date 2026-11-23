@@ -41,6 +41,8 @@ async function get(name, url) {
     await new Promise((r) => setTimeout(r, 4000 * attempt));
   }
 }
+// DONKI is served directly by NASA's CCMC (no key); the api.nasa.gov mirror has returned 404s.
+const donki = (type, params) => `https://kauai.ccmc.gsfc.nasa.gov/DONKI/WS/get/${type}?${new URLSearchParams(params)}`;
 const nasa = (p, params) => `https://api.nasa.gov${p}?${new URLSearchParams({ ...params, api_key: KEY })}`;
 
 const fetchers = {
@@ -49,7 +51,7 @@ const fetchers = {
   sun: async () => {
     const range = { startDate: day(-config.space_weather_days), endDate: day(0) };
     const [flares, storms, cmes] = await Promise.all([
-      get('flr', nasa('/DONKI/FLR', range)), get('gst', nasa('/DONKI/GST', range)), get('cme', nasa('/DONKI/CME', range)),
+      get('flr', donki('FLR', range)), get('gst', donki('GST', range)), get('cme', donki('CME', range)),
     ]);
     return M.normalizeDonki({ flares, storms, cmes });
   },
