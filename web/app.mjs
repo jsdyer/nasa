@@ -30,7 +30,8 @@ const fmt = new Intl.NumberFormat('en-CA');
 const when = (iso, o = { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) => new Date(iso).toLocaleString('en-CA', o);
 const dayOf = (iso) => when(iso, { weekday: 'short', month: 'short', day: 'numeric' });
 const full = (iso) => when(iso, { year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short' });
-const unavailable = (el, what, reason) => el.replaceChildren(h('p', { class: 'unavailable' }, `${what} wasn't available in this capture${reason ? ` (${reason})` : ''}.`));
+const brief = (reason = '') => { const r = String(reason).split(/[(;|]/)[0].trim(); return r.length > 70 ? `${r.slice(0, 70)}…` : r; };
+const unavailable = (el, what, reason) => el.replaceChildren(h('p', { class: 'unavailable', title: reason || null }, `${what} wasn't available in this capture${reason ? ` (${brief(reason)})` : ''}.`));
 
 let config, capture, map, mapLayer;
 
@@ -195,7 +196,7 @@ function renderSun(sun) {
     h('div', { class: 'stats' },
       ...[[na('flares', sum.x), 'X-class flares'], [na('flares', sum.m), 'M-class flares'], [na('cmes', sum.cmes), 'coronal mass ejections'], [na('storms', sum.storms), 'geomagnetic storms']]
         .map(([v, l]) => h('div', {}, h('b', {}, v), l))),
-    Object.keys(missing).length ? h('p', { class: 'unavailable' }, `Not available in this capture: ${Object.keys(missing).join(', ')}.`) : null,
+    Object.keys(missing).length ? h('p', { class: 'unavailable' }, `Not available in this capture: ${Object.keys(missing).map((k) => ({ flares: 'solar flares', storms: 'geomagnetic storms', cmes: 'CMEs' }[k])).join(', ')}.`) : null,
     'flares' in missing ? null : sum.strongest.length
       ? h('ul', { class: 'flares', 'aria-label': 'Strongest flares' }, ...sum.strongest.map((f) => h('li', {},
           h('span', { class: `cls ${f.cls[0]}` }, f.cls), h('span', {}, when(f.peak)),
@@ -249,7 +250,7 @@ async function show(date) {
   try {
     capture = await getJson(`./data/captures/${encodeURIComponent(date)}.json`);
   } catch (e) { note.textContent = `Couldn't load the ${date} capture.`; return; }
-  const failed = M.SOURCES.filter((k) => capture.status[k] !== 'ok');
+  const failed = M.SOURCES.filter((k) => capture.status[k] !== 'ok').map((k) => ({ apod: 'astronomy picture', sun: 'space weather', kp: 'Kp forecast', events: 'natural events', earth: 'EPIC image' }[k] || k));
   note.textContent = `Fetched ${full(capture.captured)}.${failed.length ? ` Unavailable in this capture: ${failed.join(', ')}.` : ''}`;
   for (const [name, fn] of [['earth', renderEarth], ['apod', renderApod], ['asteroids', renderAsteroids], ['sun', renderSun], ['events', renderEvents]]) {
     try { fn(capture[name]); } catch (e) { console.error(name, e); }
