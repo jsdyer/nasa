@@ -1,0 +1,22 @@
+{
+  "places": [
+    { "name": "Vancouver", "lat": 49.28, "lon": -123.12 },
+    { "name": "Halifax", "lat": 44.65, "lon": -63.57 }
+  ],
+  "aurora": {
+    "geomagnetic_pole": { "lat": 80.8, "lon": -72.7 },
+    "base_latitude": 66,
+    "degrees_per_kp": 2
+  },
+  "apod_days": 7,
+  "asteroid_days": 7,
+  "space_weather_days": 30,
+  "events": {
+    "label": "Canada",
+    "bbox": { "west": -141, "south": 41.6, "east": -52, "north": 84 },
+    "days": 60
+  },
+  "earth_target_longitude": -100,
+  "keep_captures": 30,
+  "min_sources": 3
+}

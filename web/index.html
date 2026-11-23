@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en-CA">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="{{DESCRIPTION}}">
+  <title>{{TITLE}} · CoolCode</title>
+  <link rel="stylesheet" href="./vendor/leaflet/leaflet.css">
+  <link rel="stylesheet" href="./style.css">
+  <script src="./vendor/leaflet/leaflet.js" defer></script>
+  <script type="module" src="./app.mjs"></script>
+  {{VISIT_COUNTER}}
+</head>
+<body data-tool-id="{{TOOL_ID}}">
+  <a class="skip" href="#main">Skip to content</a>
+  <header><a href="https://coolcode.ca/">← CoolCode.ca</a><a href="{{SOURCE_URL}}">Source &amp; instructions ↗</a></header>
+  <main id="main">
+    <p class="eyebrow">Sky &amp; photography · NASA open data</p>
+    <h1>{{TITLE}}</h1>
+    <p class="intro">{{DESCRIPTION}}</p>
+
+    <div class="capture-bar">
+      <label for="capture">Capture</label>
+      <select id="capture" disabled><option>Loading…</option></select>
+      <p id="capture-note" role="status" aria-live="polite"></p>
+    </div>
+    <noscript><p>This tool needs JavaScript to display the captured data. The source is available above.</p></noscript>
+
+    <div class="pair">
+      <section id="earth" aria-labelledby="earth-title">
+        <h2 id="earth-title"><span class="n">01</span>Earth from a million miles</h2>
+        <div class="body"></div>
+      </section>
+      <section id="apod" aria-labelledby="apod-title">
+        <h2 id="apod-title"><span class="n">02</span>Astronomy picture of the day</h2>
+        <div class="body"></div>
+      </section>
+    </div>
+
+    <section id="asteroids" aria-labelledby="ast-title">
+      <h2 id="ast-title"><span class="n">03</span>Asteroids passing Earth</h2>
+      <p class="lede" id="ast-lede"></p>
+      <div class="chart" id="ast-chart"></div>
+      <p class="legend"><span><i class="dot safe"></i>Near-Earth asteroid</span><span><i class="dot haz"></i>Classed potentially hazardous</span><span>Circle area ∝ estimated diameter. Distance uses a log scale.</span></p>
+      <p id="ast-detail" class="detail" role="status" aria-live="polite">Select a circle for details.</p>
+      <details><summary>All close approaches</summary><div class="table-wrap"><table id="ast-table"></table></div></details>
+    </section>
+
+    <section id="aurora" aria-labelledby="aurora-title">
+      <h2 id="aurora-title"><span class="n">04</span>Aurora outlook</h2>
+      <p class="lede" id="aurora-lede"></p>
+      <ul class="places" id="places"></ul>
+      <form id="place-form" class="add-place">
+        <label for="place-input">Add a place <span class="hint">name, latitude, longitude</span></label>
+        <div class="row"><input id="place-input" autocomplete="off" placeholder="Whitehorse, 60.72, -135.06" maxlength="100"><button type="submit">Add</button></div>
+        <p id="place-error" class="error" role="alert"></p>
+      </form>
+      <div class="kp" id="kp-chart"></div>
+      <p class="small">Three-hour planetary Kp from NOAA's Space Weather Prediction Center: muted bars are observed, bright bars are forecast. The dashed line is the lowest threshold among your places. The rule of thumb is Kp ≈ (66° − geomagnetic latitude) ÷ 2, using a centred-dipole model. It isn't a forecast. You'll still need dark, clear skies and a view toward the pole.</p>
+    </section>
+
+    <section id="sun" aria-labelledby="sun-title">
+      <h2 id="sun-title"><span class="n">05</span>The Sun</h2>
+      <div class="body"></div>
+    </section>
+
+    <section id="events" aria-labelledby="ev-title">
+      <h2 id="ev-title"><span class="n">06</span>Open natural events</h2>
+      <p class="lede" id="ev-lede"></p>
+      <div class="map-row"><div id="map" role="region" aria-label="Map of open events"></div><ul id="ev-list"></ul></div>
+    </section>
+
+    <section id="week" aria-labelledby="week-title">
+      <h2 id="week-title"><span class="n">07</span>Recent astronomy pictures</h2>
+      <div class="strip"></div>
+    </section>
+
+    <aside aria-label="Privacy and sources"><strong>What leaves your browser.</strong> The data was fetched ahead of time by this site's build, so your browser sends no NASA requests and no API key. Images load directly from NASA's servers and map tiles from OpenStreetMap, which see your IP address. Places you add stay on this device under <code>coolcode:nasa:places</code>. Sources: NASA APOD, NeoWs, DONKI, EPIC (DSCOVR) and EONET; NOAA SWPC Kp. Map library: Leaflet (BSD-2-Clause).</aside>
+  </main>
+  <footer>Part of <a href="https://coolcode.ca/">the CoolCode collection</a>. {{ISSUE_LINK}}</footer>
+</body>
+</html>

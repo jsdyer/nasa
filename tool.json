@@ -1,0 +1,26 @@
+{
+  "id": "nasa",
+  "title": "NASA Overhead",
+  "description": "A daily NASA briefing for Canada: Earth from L1, this week's asteroid flybys, aurora odds for your places, solar activity and open natural events.",
+  "category": "field-kit",
+  "tags": [
+    "nasa",
+    "apod",
+    "asteroids",
+    "aurora",
+    "space weather",
+    "epic",
+    "eonet",
+    "wildfires",
+    "Canada"
+  ],
+  "icon": "moon-star",
+  "url": "/nasa/",
+  "source": "https://github.com/jsdyer/nasa",
+  "hosting": "project",
+  "access": "browser",
+  "data_info": {
+    "mode": "snapshot",
+    "detail": "A daily build fetches NASA APOD, NeoWs, DONKI, EPIC and EONET data plus NOAA's Kp forecast; aurora thresholds for your places are calculated in the browser."
+  }
+}
