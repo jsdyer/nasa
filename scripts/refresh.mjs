@@ -47,8 +47,8 @@ async function get(name, url) {
 const donki = (type, params) => `https://kauai.ccmc.gsfc.nasa.gov/DONKI/WS/get/${type}?${new URLSearchParams(params)}`;
 async function getText(url) {
   const res = await fetch(url, { headers: { 'User-Agent': 'coolcode.ca/nasa (github.com/jsdyer/nasa)' }, signal: AbortSignal.timeout(30000) });
-  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
-  return res.text();
+  if (!res.ok) throw new Error(`${res.status} ${res.statusText} (${res.url})`);
+  return { url: res.url, text: await res.text() };
 }
 const nasa = (p, params) => `https://api.nasa.gov${p}?${new URLSearchParams({ ...params, api_key: KEY })}`;
 
@@ -65,7 +65,11 @@ const fetchers = {
       try {
         const html = fixtures ? await readFile(path.join(fixtures, `apod-${date}.html`), 'utf8')
           : await getText(`https://apod.nasa.gov/apod/ap${date.slice(2).replaceAll('-', '')}.html`);
-        good.set(date, M.parseApodPage(html, date));
+        try { good.set(date, M.parseApodPage(html.text ?? html, date)); } catch (e) {
+          const t = String(html.text ?? html);
+          const title = (t.match(/<title>([\s\S]*?)<\/title>/i)?.[1] || '').replace(/\s+/g, ' ').trim().slice(0, 80);
+          throw new Error(`${e.message} [${html.url || 'fixture'} · ${t.length} bytes · title "${title}"]`);
+        }
       } catch (e) { errors.push(`${date}: ${describe(e)}`); }
     }
     if (!good.size) throw new Error(`no usable APOD entries (${errors.slice(0, 2).join('; ')})`);
