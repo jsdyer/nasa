@@ -29,6 +29,8 @@ const config = JSON.parse(await readFile(path.join(ROOT, 'web', 'config.json'), 
 const now = opt('--now') ? new Date(opt('--now')) : new Date(); // --now lets fixtures replay a fixed day
 const day = (o) => M.utcDay(o, now);
 
+const describe = (e) => [e.message, e.cause?.code || e.cause?.message].filter(Boolean).join(' / ');
+
 async function get(name, url) {
   if (fixtures) return JSON.parse(await readFile(path.join(fixtures, `${name}.json`), 'utf8'));
   for (let attempt = 1; ; attempt++) {
@@ -41,7 +43,7 @@ async function get(name, url) {
     await new Promise((r) => setTimeout(r, 4000 * attempt));
   }
 }
-// DONKI is served directly by NASA's CCMC (no key); the api.nasa.gov mirror has returned 404s.
+// DONKI: api.nasa.gov mirror, with NASA CCMC's own web service (no key) as a fallback.
 const donki = (type, params) => `https://kauai.ccmc.gsfc.nasa.gov/DONKI/WS/get/${type}?${new URLSearchParams(params)}`;
 const nasa = (p, params) => `https://api.nasa.gov${p}?${new URLSearchParams({ ...params, api_key: KEY })}`;
 
@@ -50,9 +52,15 @@ const fetchers = {
   asteroids: async () => M.normalizeNeoFeed(await get('neo', nasa('/neo/rest/v1/feed', { start_date: day(0), end_date: day(config.asteroid_days - 1) }))),
   sun: async () => {
     const range = { startDate: day(-config.space_weather_days), endDate: day(0) };
-    const [flares, storms, cmes] = await Promise.all([
-      get('flr', donki('FLR', range)), get('gst', donki('GST', range)), get('cme', donki('CME', range)),
-    ]);
+    // Try api.nasa.gov first, then CCMC directly; report every host's error if both fail.
+    const one = async (type) => {
+      const errors = [];
+      for (const url of [nasa(`/DONKI/${type}`, range), donki(type, range)]) {
+        try { return await get(type.toLowerCase(), url); } catch (e) { errors.push(`${new URL(url).host}: ${describe(e)}`); if (fixtures) break; }
+      }
+      throw new Error(`${type} ${errors.join('; ')}`);
+    };
+    const [flares, storms, cmes] = await Promise.all(['FLR', 'GST', 'CME'].map(one));
     return M.normalizeDonki({ flares, storms, cmes });
   },
   kp: async () => M.normalizeKp(await get('kp', 'https://services.swpc.noaa.gov/products/noaa-planetary-k-index-forecast.json')),
@@ -69,7 +77,7 @@ await Promise.all(Object.entries(fetchers).map(async ([name, fn]) => {
     console.log(`✓ ${name}`);
   } catch (err) {
     capture[name] = null;
-    capture.status[name] = String(err.message || err).replaceAll(KEY || '\0', '***').slice(0, 200);
+    capture.status[name] = describe(err).replaceAll(KEY || '\0', '***').slice(0, 200);
     console.error(`✗ ${name}: ${capture.status[name]}`);
   }
 }));
