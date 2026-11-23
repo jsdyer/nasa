@@ -59,11 +59,12 @@ const fetchers = {
     try { list = M.normalizeApod(await get('apod', nasa('/planetary/apod', { start_date: day(1 - config.apod_days), end_date: day(0), thumbs: 'true' }))); } catch (e) { console.error(`  apod API: ${describe(e)}`); }
     const good = new Map(list.filter((a) => !M.isPlaceholderApod(a)).map((a) => [a.date, a]));
     const errors = [];
+    const unreachable = new Set(); // a mirror that can't be reached isn't retried for later dates
     for (let i = 0; i < config.apod_days; i++) {
       const date = day(-i);
       if (good.has(date)) continue;
       const file = `ap${date.slice(2).replaceAll('-', '')}.html`;
-      const tries = fixtures ? [null] : M.APOD_MIRRORS;
+      const tries = fixtures ? [null] : M.APOD_MIRRORS.filter((b) => !unreachable.has(b));
       const why = [];
       for (const base of tries) {
         try {
@@ -72,7 +73,7 @@ const fetchers = {
             const title = (page.text.match(/<title>([\s\S]*?)<\/title>/i)?.[1] || '').replace(/\s+/g, ' ').trim().slice(0, 60);
             throw new Error(`${e.message} [${page.url} · ${page.text.length} bytes · "${title}"]`);
           }
-        } catch (e) { why.push(describe(e)); }
+        } catch (e) { why.push(describe(e)); if (/fetch failed|timeout|aborted/i.test(describe(e))) unreachable.add(base); }
       }
       if (!good.has(date)) errors.push(`${date}: ${why.join(' | ')}`);
     }
