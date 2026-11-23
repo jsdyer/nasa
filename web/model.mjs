@@ -265,7 +265,7 @@ export function validateCapture(capture, minSources = 3) {
   const ok = SOURCES.filter((s) => capture.status?.[s] === 'ok');
   if (ok.length < minSources) problems.push(`only ${ok.length} of ${SOURCES.length} sources succeeded (need ${minSources})`);
   for (const s of ok) if (capture[s] === undefined || capture[s] === null) problems.push(`${s} marked ok but empty`);
-  if (ok.includes('apod') && !capture.apod.length) problems.push('apod has no entries');
+  if (ok.includes('apod') && (!capture.apod.length || capture.apod.some(isPlaceholderApod))) problems.push('apod has no entries or placeholder entries');
   if (ok.includes('asteroids') && capture.asteroids.some((r) => !isFiniteNum(r.lunar) || r.lunar <= 0)) problems.push('asteroid with invalid distance');
   if (ok.includes('kp') && !capture.kp.length) problems.push('kp has no rows');
   if (ok.includes('earth') && !/^https:\/\/epic\.gsfc\.nasa\.gov\//.test(capture.earth.image)) problems.push('earth image URL unexpected');
@@ -277,4 +277,45 @@ export function updateIndex(index, entry, keep) {
   const rest = (Array.isArray(index) ? index : []).filter((e) => e.date !== entry.date);
   const all = [entry, ...rest].sort((a, b) => b.date.localeCompare(a.date));
   return { kept: all.slice(0, keep), dropped: all.slice(keep) };
+}
+
+// ------------------------------------------------------------------ APOD fallback
+const APOD_BASE = 'https://apod.nasa.gov/apod/';
+const decode = (s) => s
+  .replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(+n))
+  .replace(/&#x([0-9a-f]+);/gi, (_, n) => String.fromCodePoint(parseInt(n, 16)))
+  .replace(/&(nbsp|amp|lt|gt|quot|apos|#39);/g, (_, e) => ({ nbsp: ' ', amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", '#39': "'" }[e]));
+const plain = (html) => decode(html.replace(/<[^>]*>/g, ' ')).replace(/\s+/g, ' ').trim();
+
+/**
+ * True when an API entry is a stand-in rather than that day's picture: the API has
+ * been seen returning "NASA Science" with a NASA logo URL for every date.
+ */
+export function isPlaceholderApod(a) {
+  if (!a) return true;
+  let host = '';
+  try { host = new URL(a.url).host; } catch { return true; }
+  if (a.media_type === 'video') return !/(^|\.)(youtube(-nocookie)?\.com|vimeo\.com|apod\.nasa\.gov)$/.test(host);
+  return host !== 'apod.nasa.gov' || /^nasa science$/i.test(a.title);
+}
+
+/** Parse an apod.nasa.gov daily page (apYYMMDD.html) into the normalized APOD shape. */
+export function parseApodPage(html, date) {
+  if (typeof html !== 'string') throw new TypeError('APOD page: expected HTML');
+  const img = html.match(/<a\s+href="(image\/[^"]+)"[^>]*>\s*<img[^>]+src="(image\/[^"]+)"/i);
+  const iframe = html.match(/<iframe[^>]+src="(https:\/\/[^"]+)"/i);
+  const title = html.match(/<center>\s*<b>\s*([\s\S]*?)\s*<\/b>/i);
+  const expl = html.match(/Explanation:\s*<\/b>([\s\S]*?)(?:<p>\s*<center>|<center>\s*<b>\s*Tomorrow)/i);
+  if (!title || !expl || !(img || iframe)) throw new Error(`APOD page for ${date}: unexpected layout`);
+  const credit = html.match(/<b>\s*[^<]*Credit[^<]*<\/b>([\s\S]*?)<\/center>/i);
+  return {
+    date,
+    title: plain(title[1]),
+    explanation: plain(expl[1]),
+    media_type: img ? 'image' : 'video',
+    url: img ? APOD_BASE + img[2] : iframe[1],
+    hdurl: img ? APOD_BASE + img[1] : null,
+    thumbnail_url: null,
+    copyright: credit ? plain(credit[1]).slice(0, 200) || null : null,
+  };
 }

@@ -45,10 +45,33 @@ async function get(name, url) {
 }
 // DONKI: api.nasa.gov mirror, with NASA CCMC's own web service (no key) as a fallback.
 const donki = (type, params) => `https://kauai.ccmc.gsfc.nasa.gov/DONKI/WS/get/${type}?${new URLSearchParams(params)}`;
+async function getText(url) {
+  const res = await fetch(url, { headers: { 'User-Agent': 'coolcode.ca/nasa (github.com/jsdyer/nasa)' }, signal: AbortSignal.timeout(30000) });
+  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+  return res.text();
+}
 const nasa = (p, params) => `https://api.nasa.gov${p}?${new URLSearchParams({ ...params, api_key: KEY })}`;
 
 const fetchers = {
-  apod: async () => M.normalizeApod(await get('apod', nasa('/planetary/apod', { start_date: day(1 - config.apod_days), end_date: day(0), thumbs: 'true' }))),
+  apod: async () => {
+    // Use the API, but replace placeholder entries with the real page from apod.nasa.gov.
+    let list = [];
+    try { list = M.normalizeApod(await get('apod', nasa('/planetary/apod', { start_date: day(1 - config.apod_days), end_date: day(0), thumbs: 'true' }))); } catch (e) { console.error(`  apod API: ${describe(e)}`); }
+    const good = new Map(list.filter((a) => !M.isPlaceholderApod(a)).map((a) => [a.date, a]));
+    const errors = [];
+    for (let i = 0; i < config.apod_days; i++) {
+      const date = day(-i);
+      if (good.has(date)) continue;
+      try {
+        const html = fixtures ? await readFile(path.join(fixtures, `apod-${date}.html`), 'utf8')
+          : await getText(`https://apod.nasa.gov/apod/ap${date.slice(2).replaceAll('-', '')}.html`);
+        good.set(date, M.parseApodPage(html, date));
+      } catch (e) { errors.push(`${date}: ${describe(e)}`); }
+    }
+    if (!good.size) throw new Error(`no usable APOD entries (${errors.slice(0, 2).join('; ')})`);
+    if (errors.length) console.error(`  apod pages skipped: ${errors.join('; ')}`);
+    return [...good.values()].sort((a, b) => b.date.localeCompare(a.date));
+  },
   asteroids: async () => M.normalizeNeoFeed(await get('neo', nasa('/neo/rest/v1/feed', { start_date: day(0), end_date: day(config.asteroid_days - 1) }))),
   sun: async () => {
     const range = { startDate: day(-config.space_weather_days), endDate: day(0) };

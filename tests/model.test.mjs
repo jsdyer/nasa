@@ -91,11 +91,30 @@ test('EPIC picks the frame nearest the target longitude, across the antimeridian
 });
 
 test('capture validation and index retention', () => {
-  const capture = { captured: '2026-11-23T15:00:00Z', status: { apod: 'ok', kp: 'ok', earth: '503' }, apod: [{}], kp: [{}], earth: null };
+  const capture = { captured: '2026-11-23T15:00:00Z', status: { apod: 'ok', kp: 'ok', earth: '503' }, apod: M.normalizeApod(raw('apod')), kp: [{}], earth: null };
   assert.match(M.validateCapture(capture, 3).join(), /only 2 of 6/);
   assert.deepEqual(M.validateCapture(capture, 2), []);
   assert.deepEqual(M.validateCapture({}, 1), ['missing capture time']);
   let index = [];
   for (const d of ['2026-11-20', '2026-11-21', '2026-11-22', '2026-11-21']) index = M.updateIndex(index, { date: d }, 2).kept;
   assert.deepEqual(index.map((e) => e.date), ['2026-11-22', '2026-11-21']);
+});
+
+test('APOD placeholders are detected and real pages are parsed instead', () => {
+  const placeholder = { date: '2026-11-23', title: 'NASA Science', media_type: 'image', url: 'https://science.nasa.gov/wp-content/themes/nasa-child/assets/images/nasa-logo@2x.png' };
+  assert.ok(M.isPlaceholderApod(placeholder));
+  assert.ok(!M.isPlaceholderApod(M.normalizeApod(raw('apod'))[0]));
+  assert.ok(!M.isPlaceholderApod({ title: 'A video', media_type: 'video', url: 'https://www.youtube.com/embed/abc' }));
+  const page = readFileSync(new URL('./fixtures/apod-page.html', import.meta.url), 'utf8');
+  const a = M.parseApodPage(page, '2026-11-23');
+  assert.equal(a.title, 'Sample Nebula in Hydrogen & Oxygen');
+  assert.equal(a.url, 'https://apod.nasa.gov/apod/image/2611/SampleNebula_1024.jpg');
+  assert.equal(a.hdurl, 'https://apod.nasa.gov/apod/image/2611/SampleNebula_Big.jpg');
+  assert.equal(a.copyright, 'A. Astrophotographer');
+  assert.match(a.explanation, /^What lights up this nebula \? Ionized hydrogen glows red, while oxygen/);
+  assert.ok(!a.explanation.includes('<'));
+  assert.ok(!M.isPlaceholderApod(a));
+  assert.throws(() => M.parseApodPage('<html>nothing</html>', '2026-11-23'), /unexpected layout/);
+  const cap = { captured: '2026-11-23T15:00:00Z', status: { apod: 'ok', kp: 'ok', events: 'ok' }, apod: [placeholder], kp: [{}], events: [] };
+  assert.match(M.validateCapture(cap, 3).join(), /placeholder/);
 });
