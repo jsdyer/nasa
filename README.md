@@ -59,7 +59,7 @@ To add a place for everyone, append it to `places`, for example `{ "name": "Whit
 3. Push to `main`, or run the workflow by hand. Then check https://coolcode.ca/nasa/.
 4. Copy the reviewed `tool.json` object into `data/tools.json` in [jsdyer.github.io](https://github.com/jsdyer/jsdyer.github.io), then run `python3 scripts/sync_guides.py --tool nasa` and `python3 scripts/sync_readme.py` there.
 
-GitHub pauses scheduled workflows in public repositories after 60 days without activity. If captures stop, run the workflow by hand or push a commit.
+GitHub pauses scheduled workflows in public repositories after 60 days without activity. If captures stop, run the workflow by hand or push a commit. To handle this automatically from your own server, see [`ops/keepalive/`](ops/keepalive/README.md): a monthly systemd timer that re-enables and runs the workflow, then checks that the new capture was published.
 
 ## Develop and test
 
