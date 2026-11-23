@@ -281,6 +281,9 @@ export function updateIndex(index, entry, keep) {
 
 // ------------------------------------------------------------------ APOD fallback
 const APOD_BASE = 'https://apod.nasa.gov/apod/';
+/** Hosts that serve genuine APOD images: NASA and the classic-layout mirrors used as fallbacks. */
+export const APOD_MIRRORS = ['https://www.star.ucl.ac.uk/~apod/apod/', 'http://www.star.ucl.ac.uk/~apod/apod/'];
+const APOD_HOSTS = ['apod.nasa.gov', 'www.star.ucl.ac.uk'];
 const decode = (s) => s
   .replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(+n))
   .replace(/&#x([0-9a-f]+);/gi, (_, n) => String.fromCodePoint(parseInt(n, 16)))
@@ -295,12 +298,16 @@ export function isPlaceholderApod(a) {
   if (!a) return true;
   let host = '';
   try { host = new URL(a.url).host; } catch { return true; }
-  if (a.media_type === 'video') return !/(^|\.)(youtube(-nocookie)?\.com|vimeo\.com|apod\.nasa\.gov)$/.test(host);
-  return host !== 'apod.nasa.gov' || /^nasa science$/i.test(a.title);
+  if (/^nasa science$/i.test(a.title)) return true;
+  if (a.media_type === 'video') return !/(^|\.)(youtube(-nocookie)?\.com|vimeo\.com)$/.test(host) && !APOD_HOSTS.includes(host);
+  return !APOD_HOSTS.includes(host);
 }
 
-/** Parse an apod.nasa.gov daily page (apYYMMDD.html) into the normalized APOD shape. */
-export function parseApodPage(html, date) {
+/**
+ * Parse a classic-layout APOD daily page (apYYMMDD.html, as served by APOD's mirrors)
+ * into the normalized APOD shape. Relative image paths resolve against `pageUrl`.
+ */
+export function parseApodPage(html, date, pageUrl = APOD_BASE) {
   if (typeof html !== 'string') throw new TypeError('APOD page: expected HTML');
   const img = html.match(/<a\s+href="(image\/[^"]+)"[^>]*>\s*<img[^>]+src="(image\/[^"]+)"/i);
   const iframe = html.match(/<iframe[^>]+src="(https:\/\/[^"]+)"/i);
@@ -313,8 +320,8 @@ export function parseApodPage(html, date) {
     title: plain(title[1]),
     explanation: plain(expl[1]),
     media_type: img ? 'image' : 'video',
-    url: img ? APOD_BASE + img[2] : iframe[1],
-    hdurl: img ? APOD_BASE + img[1] : null,
+    url: img ? new URL(img[2], pageUrl).href : iframe[1],
+    hdurl: img ? new URL(img[1], pageUrl).href : null,
     thumbnail_url: null,
     copyright: credit ? plain(credit[1]).slice(0, 200) || null : null,
   };

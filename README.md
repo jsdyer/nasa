@@ -30,7 +30,7 @@ GitHub Actions (daily 13:17 UTC, on push to main, or run by hand)
 
 - **The key never reaches the browser.** `refresh.mjs` runs only in Actions, and the published site holds only the fetched JSON. Visitors send no NASA requests.
 - **Each source is fetched independently.** If one fails, its section says so and names the error. If fewer than `min_sources` succeed, or the data fails validation, the job fails and the previous deployment stays live.
-- **Fallbacks for NASA API faults:** if the APOD API returns placeholder entries (it has been returning "NASA Science" with a NASA logo for every date), those days are read from apod.nasa.gov's own daily pages instead. DONKI feeds try api.nasa.gov, then NASA CCMC directly. A single failed feed (for example, flares) is marked unavailable rather than hiding the whole Sun section.
+- **Fallbacks for NASA API faults:** if the APOD API returns placeholder entries (it has been returning "NASA Science" with a NASA logo for every date), those days are read from an official APOD mirror (University College London) that keeps the classic page layout, since apod.nasa.gov now redirects to science.nasa.gov. DONKI feeds try api.nasa.gov, then NASA CCMC directly. A single failed feed (for example, flares) is marked unavailable rather than hiding the whole Sun section.
 - **Captures persist** in the Actions cache: one per UTC day (a rerun the same day replaces it), keeping the newest `keep_captures`. Each capture records its own coverage, so older ones still read correctly after you change the configuration.
 - The page is plain HTML, CSS and ES modules. Leaflet 1.9.4 is vendored under `web/vendor/leaflet/`, so no CDN is used. Map tiles come from OpenStreetMap, and images load directly from NASA.
 

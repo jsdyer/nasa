@@ -109,6 +109,8 @@ test('APOD placeholders are detected and real pages are parsed instead', () => {
   const a = M.parseApodPage(page, '2026-11-23');
   assert.equal(a.title, 'Sample Nebula in Hydrogen & Oxygen');
   assert.equal(a.url, 'https://apod.nasa.gov/apod/image/2611/SampleNebula_1024.jpg');
+  assert.equal(M.parseApodPage(page, '2026-11-23', 'https://www.star.ucl.ac.uk/~apod/apod/ap261123.html').url, 'https://www.star.ucl.ac.uk/~apod/apod/image/2611/SampleNebula_1024.jpg');
+  assert.ok(!M.isPlaceholderApod(M.parseApodPage(page, '2026-11-23', 'https://www.star.ucl.ac.uk/~apod/apod/ap261123.html')));
   assert.equal(a.hdurl, 'https://apod.nasa.gov/apod/image/2611/SampleNebula_Big.jpg');
   assert.equal(a.copyright, 'A. Astrophotographer');
   assert.match(a.explanation, /^What lights up this nebula \? Ionized hydrogen glows red, while oxygen/);

@@ -62,15 +62,19 @@ const fetchers = {
     for (let i = 0; i < config.apod_days; i++) {
       const date = day(-i);
       if (good.has(date)) continue;
-      try {
-        const html = fixtures ? await readFile(path.join(fixtures, `apod-${date}.html`), 'utf8')
-          : await getText(`https://apod.nasa.gov/apod/ap${date.slice(2).replaceAll('-', '')}.html`);
-        try { good.set(date, M.parseApodPage(html.text ?? html, date)); } catch (e) {
-          const t = String(html.text ?? html);
-          const title = (t.match(/<title>([\s\S]*?)<\/title>/i)?.[1] || '').replace(/\s+/g, ' ').trim().slice(0, 80);
-          throw new Error(`${e.message} [${html.url || 'fixture'} · ${t.length} bytes · title "${title}"]`);
-        }
-      } catch (e) { errors.push(`${date}: ${describe(e)}`); }
+      const file = `ap${date.slice(2).replaceAll('-', '')}.html`;
+      const tries = fixtures ? [null] : M.APOD_MIRRORS;
+      const why = [];
+      for (const base of tries) {
+        try {
+          const page = fixtures ? { url: M.APOD_MIRRORS[0] + file, text: await readFile(path.join(fixtures, `apod-${date}.html`), 'utf8') } : await getText(base + file);
+          try { good.set(date, M.parseApodPage(page.text, date, page.url)); break; } catch (e) {
+            const title = (page.text.match(/<title>([\s\S]*?)<\/title>/i)?.[1] || '').replace(/\s+/g, ' ').trim().slice(0, 60);
+            throw new Error(`${e.message} [${page.url} · ${page.text.length} bytes · "${title}"]`);
+          }
+        } catch (e) { why.push(describe(e)); }
+      }
+      if (!good.has(date)) errors.push(`${date}: ${why.join(' | ')}`);
     }
     if (!good.size) throw new Error(`no usable APOD entries (${errors.slice(0, 2).join('; ')})`);
     if (errors.length) console.error(`  apod pages skipped: ${errors.join('; ')}`);
