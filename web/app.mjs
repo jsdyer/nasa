@@ -187,13 +187,16 @@ function renderSun(sun) {
   const el = $('#sun .body');
   if (!sun) return unavailable(el, 'DONKI space weather', capture.status.sun);
   const sum = M.summarizeSun(sun);
+  const missing = sun.missing || {};
+  const na = (k, v) => (k in missing ? '—' : String(v));
   const days = capture.coverage?.space_weather_days ?? 30;
-  el.replaceChildren(
+  el.replaceChildren(...[
     h('p', { class: 'small' }, `The ${days} days up to ${dayOf(capture.captured)}, from NASA's DONKI space-weather database.`),
     h('div', { class: 'stats' },
-      ...[[sum.x, 'X-class flares'], [sum.m, 'M-class flares'], [sum.cmes, 'coronal mass ejections'], [sum.storms, 'geomagnetic storms']]
-        .map(([v, l]) => h('div', {}, h('b', {}, String(v)), l))),
-    sum.strongest.length
+      ...[[na('flares', sum.x), 'X-class flares'], [na('flares', sum.m), 'M-class flares'], [na('cmes', sum.cmes), 'coronal mass ejections'], [na('storms', sum.storms), 'geomagnetic storms']]
+        .map(([v, l]) => h('div', {}, h('b', {}, v), l))),
+    Object.keys(missing).length ? h('p', { class: 'unavailable' }, `Not available in this capture: ${Object.keys(missing).join(', ')}.`) : null,
+    'flares' in missing ? null : sum.strongest.length
       ? h('ul', { class: 'flares', 'aria-label': 'Strongest flares' }, ...sum.strongest.map((f) => h('li', {},
           h('span', { class: `cls ${f.cls[0]}` }, f.cls), h('span', {}, when(f.peak)),
           h('span', { class: 'small' }, [f.region ? `AR ${f.region}` : '', f.where || ''].filter(Boolean).join(' · ')),
@@ -202,7 +205,7 @@ function renderSun(sun) {
     h('p', { class: 'small' },
       sum.fastestCme ? `Fastest CME: ${fmt.format(sum.fastestCme.speed)} km/s on ${dayOf(sum.fastestCme.start)}. ` : '',
       sum.biggestStorm ? `Strongest storm reached Kp ${sum.biggestStorm.maxKp} on ${dayOf(sum.biggestStorm.start)}. ` : 'No geomagnetic storms recorded. ',
-      'Flare classes are logarithmic: an X1 flare is ten times an M1.'));
+      'Flare classes are logarithmic: an X1 flare is ten times an M1.')].filter(Boolean));
 }
 
 // --- 06 Events ----------------------------------------------------------------------

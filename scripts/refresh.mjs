@@ -60,8 +60,12 @@ const fetchers = {
       }
       throw new Error(`${type} ${errors.join('; ')}`);
     };
-    const [flares, storms, cmes] = await Promise.all(['FLR', 'GST', 'CME'].map(one));
-    return M.normalizeDonki({ flares, storms, cmes });
+    // Each feed is optional: a failed one is recorded and its part of the section says so.
+    const results = await Promise.allSettled(['FLR', 'GST', 'CME'].map(one));
+    if (results.every((r) => r.status === 'rejected')) throw new Error(results.map((r) => r.reason.message).join(' | '));
+    const [flares, storms, cmes] = results.map((r) => (r.status === 'fulfilled' ? r.value : null));
+    const missing = Object.fromEntries(['flares', 'storms', 'cmes'].flatMap((k, i) => (results[i].status === 'rejected' ? [[k, results[i].reason.message.slice(0, 200)]] : [])));
+    return { ...M.normalizeDonki({ flares, storms, cmes }), missing };
   },
   kp: async () => M.normalizeKp(await get('kp', 'https://services.swpc.noaa.gov/products/noaa-planetary-k-index-forecast.json')),
   events: async () => M.normalizeEonet(await get('eonet',

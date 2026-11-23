@@ -43,3 +43,17 @@ test('live mode refuses to run without a key', () => {
   assert.notEqual(r.status, 0);
   assert.match(r.stderr, /NASA_API_KEY is not set/);
 });
+
+test('one failed DONKI feed leaves the rest of the Sun section', () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'nasa-'));
+  const fix = path.join(dir, 'raw');
+  cpSync(FIX, fix, { recursive: true });
+  writeFileSync(path.join(fix, 'flr.json'), '{"broken":');
+  const out = path.join(dir, 'out');
+  const r = run(['--fixtures', fix, '--cache', path.join(dir, 'cache'), '--out', out, '--now', '2026-11-23T15:00:00Z']);
+  assert.equal(r.status, 0, r.stderr);
+  const cap = JSON.parse(readFileSync(path.join(out, 'captures', '2026-11-23.json'), 'utf8'));
+  assert.equal(cap.status.sun, 'ok');
+  assert.deepEqual(Object.keys(cap.sun.missing), ['flares']);
+  assert.equal(cap.sun.storms.length, 1);
+});
