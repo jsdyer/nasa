@@ -16,6 +16,7 @@ A daily NASA briefing for Canada, published at **https://coolcode.ca/nasa/**. Ea
 
 <!-- coolcode:guide -->
 Each day's build saves a dated capture. Use the Capture menu to compare earlier days. The asteroid chart plots each close approach by date and by distance in lunar distances (LD, about 384,400 km) on a log scale. Anything below the dashed line passes inside the Moon's orbit. "Potentially hazardous" is NASA's orbital class, not a risk for this week. For the aurora, a city with a geomagnetic latitude of about 54° (Vancouver, Halifax) typically needs Kp 6 or higher to see a glow on the northern horizon. Add your own place as "Name, latitude, longitude", for example "Whitehorse, 60.72, -135.06".
+APOD uses NASA’s APOD Basic feed: each entry links to its dated article, with an image, video, or article-only fallback. A successful daily capture can contain a source error; its public source results show which feeds were unavailable.
 <!-- /coolcode:guide -->
 
 The aurora threshold is a rule of thumb, not a forecast: Kp ≈ (66° − |geomagnetic latitude|) ÷ 2. Geomagnetic latitude comes from a centred-dipole model with the north geomagnetic pole at 80.8°N, 72.7°W (IGRF, 2025). Clouds, moonlight and city light matter as much as Kp.
@@ -30,7 +31,8 @@ GitHub Actions (daily 13:17 UTC, on push to main, or run by hand)
 
 - **The key never reaches the browser.** `refresh.mjs` runs only in Actions, and the published site holds only the fetched JSON. Visitors send no NASA requests.
 - **Each source is fetched independently.** If one fails, its section says so and names the error. If fewer than `min_sources` succeed, or the data fails validation, the job fails and the previous deployment stays live.
-- **Fallbacks for NASA API faults:** if the APOD API returns placeholder entries (it has been returning "NASA Science" with a NASA logo for every date), those days are read from an official APOD mirror (University College London) that keeps the classic page layout, since apod.nasa.gov now redirects to science.nasa.gov. DONKI feeds try api.nasa.gov, then NASA CCMC directly. A single failed feed (for example, flares) is marked unavailable rather than hiding the whole Sun section.
+- **APOD migration:** pictures use NASA's [APOD Basic API](https://science.nasa.gov/wp-json/wp/v2/apod-basic), replacing the legacy endpoint being retired on 1 December 2026. Its `url`/`permalink` is the article; `hdurl` is an optional image. Direct video and iframe URLs are extracted from `basic_html` without inserting that HTML into the app. Entries without usable media keep their article link. Dates are checked against the requested seven-day window. APOD needs no key; the repository key is still used by the other NASA APIs.
+- **Partial source failures:** DONKI feeds try api.nasa.gov, then NASA CCMC directly. Failed feeds remain visible in the capture and public index, including individual Sun feeds. A publishable capture can still have a failed source; the admin reports this separately from workflow success.
 - **Captures persist** in the Actions cache: one per UTC day (a rerun the same day replaces it), keeping the newest `keep_captures`. Each capture records its own coverage, so older ones still read correctly after you change the configuration.
 - The page is plain HTML, CSS and ES modules. Leaflet 1.9.4 is vendored under `web/vendor/leaflet/`, so no CDN is used. Map tiles come from OpenStreetMap, and images load directly from NASA.
 

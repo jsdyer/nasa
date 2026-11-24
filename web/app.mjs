@@ -53,10 +53,12 @@ function renderEarth(e) {
 function apodMedia(a) {
   if (a.media_type === 'image') return h('a', { href: a.hdurl || a.url }, h('img', { src: a.url, alt: a.title }));
   const embed = safeUrl(a.url);
+  if (a.media_type === 'video' && embed && /\.(mp4|webm)(?:[?#]|$)/i.test(embed))
+    return h('video', { src: embed, controls: '', preload: 'metadata', poster: safeUrl(a.thumbnail_url) || '', 'aria-label': a.title });
   if (a.media_type === 'video' && embed && /^https:\/\/(www\.)?(youtube(-nocookie)?\.com\/embed|player\.vimeo\.com)\//.test(embed))
     return h('iframe', { src: embed, title: a.title, allowfullscreen: '', loading: 'lazy', referrerpolicy: 'no-referrer' });
   if (a.thumbnail_url) return h('a', { href: a.url }, h('img', { src: a.thumbnail_url, alt: a.title }));
-  return h('p', {}, h('a', { href: M.apodPage(a.date) }, 'Open on apod.nasa.gov'));
+  return h('p', {}, h('a', { href: a.page_url || M.apodPage(a.date) }, 'Open APOD article'));
 }
 function renderApod(list) {
   const el = $('#apod .body');
@@ -72,10 +74,10 @@ function renderApod(list) {
   el.replaceChildren(h('figure', {}, apodMedia(a), h('figcaption', {},
     h('h3', {}, a.title),
     h('p', { class: 'meta' }, a.date, a.copyright ? ` · © ${a.copyright}` : ''),
-    expl, more, ' ', h('a', { href: M.apodPage(a.date) }, 'apod.nasa.gov ↗'))));
+    expl, more, ' ', h('a', { href: a.page_url || M.apodPage(a.date) }, 'APOD article ↗'))));
   strip.replaceChildren(...list.map((d) => {
     const img = d.media_type === 'image' ? d.url : d.thumbnail_url;
-    return h('a', { href: M.apodPage(d.date) }, img ? h('img', { src: img, alt: '', loading: 'lazy' }) : h('span', { class: 'ph' }), h('span', { class: 'd' }, d.date), d.title);
+    return h('a', { href: d.page_url || M.apodPage(d.date) }, img ? h('img', { src: img, alt: '', loading: 'lazy' }) : h('span', { class: 'ph' }), h('span', { class: 'd' }, d.date), d.title);
   }));
 }
 

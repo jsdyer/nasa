@@ -45,41 +45,17 @@ async function get(name, url) {
 }
 // DONKI: api.nasa.gov mirror, with NASA CCMC's own web service (no key) as a fallback.
 const donki = (type, params) => `https://kauai.ccmc.gsfc.nasa.gov/DONKI/WS/get/${type}?${new URLSearchParams(params)}`;
-async function getText(url) {
-  const res = await fetch(url, { headers: { 'User-Agent': 'coolcode.ca/nasa (github.com/jsdyer/nasa)' }, signal: AbortSignal.timeout(30000) });
-  if (!res.ok) throw new Error(`${res.status} ${res.statusText} (${res.url})`);
-  return { url: res.url, text: await res.text() };
-}
 const nasa = (p, params) => `https://api.nasa.gov${p}?${new URLSearchParams({ ...params, api_key: KEY })}`;
 
 const fetchers = {
   apod: async () => {
-    // Use the API, but replace placeholder entries with the real page from apod.nasa.gov.
-    let list = [];
-    try { list = M.normalizeApod(await get('apod', nasa('/planetary/apod', { start_date: day(1 - config.apod_days), end_date: day(0), thumbs: 'true' }))); } catch (e) { console.error(`  apod API: ${describe(e)}`); }
-    const good = new Map(list.filter((a) => !M.isPlaceholderApod(a)).map((a) => [a.date, a]));
-    const errors = [];
-    const unreachable = new Set(); // a mirror that can't be reached isn't retried for later dates
-    for (let i = 0; i < config.apod_days; i++) {
-      const date = day(-i);
-      if (good.has(date)) continue;
-      const file = `ap${date.slice(2).replaceAll('-', '')}.html`;
-      const tries = fixtures ? [null] : M.APOD_MIRRORS.filter((b) => !unreachable.has(b));
-      const why = [];
-      for (const base of tries) {
-        try {
-          const page = fixtures ? { url: M.APOD_MIRRORS[0] + file, text: await readFile(path.join(fixtures, `apod-${date}.html`), 'utf8') } : await getText(base + file);
-          try { good.set(date, M.parseApodPage(page.text, date, page.url)); break; } catch (e) {
-            const title = (page.text.match(/<title>([\s\S]*?)<\/title>/i)?.[1] || '').replace(/\s+/g, ' ').trim().slice(0, 60);
-            throw new Error(`${e.message} [${page.url} · ${page.text.length} bytes · "${title}"]`);
-          }
-        } catch (e) { why.push(describe(e)); if (/fetch failed|timeout|aborted/i.test(describe(e))) unreachable.add(base); }
-      }
-      if (!good.has(date)) errors.push(`${date}: ${why.join(' | ')}`);
-    }
-    if (!good.size) throw new Error(`no usable APOD entries (${errors.slice(0, 2).join('; ')})`);
-    if (errors.length) console.error(`  apod pages skipped: ${errors.join('; ')}`);
-    return [...good.values()].sort((a, b) => b.date.localeCompare(a.date));
+    const from = day(1 - config.apod_days), to = day(0);
+    const code = date => date.slice(2).replaceAll('-', '');
+    const url = `${M.APOD_API}?${new URLSearchParams({date_from:code(from), date_to:code(to), per_page:25})}`;
+    const list = M.normalizeApodBasic(await get('apod-basic', url))
+      .filter(a => a.date >= from && a.date <= to && !M.isPlaceholderApod(a));
+    if (!list.length) throw new Error('APOD Basic returned no usable dated entries in the requested window');
+    return [...new Map(list.map(a => [a.date, a])).values()];
   },
   asteroids: async () => M.normalizeNeoFeed(await get('neo', nasa('/neo/rest/v1/feed', { start_date: day(0), end_date: day(config.asteroid_days - 1) }))),
   sun: async () => {
@@ -129,7 +105,7 @@ await mkdir(CACHE, { recursive: true });
 await writeFile(path.join(CACHE, `${capture.date}.json`), JSON.stringify(capture));
 let index = [];
 try { index = JSON.parse(await readFile(path.join(CACHE, 'index.json'), 'utf8')); } catch { /* first run */ }
-const entry = { date: capture.date, captured: capture.captured, status: capture.status, coverage: capture.coverage };
+const entry = { date: capture.date, captured: capture.captured, status: { ...capture.status, ...Object.fromEntries(Object.entries(capture.sun?.missing || {}).map(([name, error]) => ['sun.' + name, error])) }, coverage: capture.coverage };
 const { kept, dropped } = M.updateIndex(index, entry, config.keep_captures);
 for (const d of dropped) await rm(path.join(CACHE, `${d.date}.json`), { force: true });
 await writeFile(path.join(CACHE, 'index.json'), JSON.stringify(kept));

@@ -29,10 +29,40 @@ export function normalizeApod(list) {
       media_type: a.media_type === 'video' ? 'video' : a.media_type === 'image' ? 'image' : 'other',
       url: String(a.url ?? ''),
       hdurl: a.hdurl ? String(a.hdurl) : null,
+      page_url: a.page_url ? String(a.page_url) : null,
       thumbnail_url: a.thumbnail_url ? String(a.thumbnail_url) : null,
       copyright: a.copyright ? String(a.copyright).replace(/\s+/g, ' ').trim() : null,
     }))
     .sort((a, b) => b.date.localeCompare(a.date));
+}
+
+/** NASA's APOD Basic API uses url for the article, not the media. */
+export const APOD_API = 'https://science.nasa.gov/wp-json/wp/v2/apod-basic';
+function mediaUrl(value, base) {
+  if (typeof value !== 'string' || !value.trim()) return null;
+  try {
+    const u = new URL(decode(String(value || '')), base);
+    return u.protocol === 'https:' && !u.username && !u.password ? u.href : null;
+  } catch { return null; }
+}
+export function normalizeApodBasic(list) {
+  if (!Array.isArray(list)) throw new TypeError('APOD Basic: expected an array');
+  return normalizeApod(list.flatMap(a => {
+    if (!a || !/^\d{4}-\d{2}-\d{2}$/.test(a.date || '') || typeof a.title !== 'string') return [];
+    const page = mediaUrl(a.permalink || a.url);
+    if (!page || new URL(page).hostname !== 'science.nasa.gov' || !new URL(page).pathname.startsWith('/image-article/')) return [];
+    const html = typeof a.basic_html === 'string' ? a.basic_html : '';
+    const video = a.media_type === 'video' || a.media_type === 'iframe';
+    // Extract only a URL from source markup. Never insert upstream HTML into the page.
+    const videoTag = html.match(/<(?:iframe|video|source)\b[^>]*\bsrc\s*=\s*["']([^"']+)["']/i);
+    const imageTag = html.match(/<img\b[^>]*\bsrc\s*=\s*["']([^"']+)["']/i);
+    const hd = mediaUrl(a.hdurl);
+    const media = video ? mediaUrl(videoTag?.[1], page) : hd || mediaUrl(imageTag?.[1], page);
+    return [{date:a.date, title:decode(a.title), explanation:plain(String(a.explanation || '')).replace(/^Explanation:\s*/i, ''),
+      page_url:page, url:media || page, media_type:media ? (video ? 'video' : 'image') : 'other',
+      hdurl:video ? null : hd, thumbnail_url:video ? hd : null,
+      copyright:plain(String(a.copyright || a.credit || '')) || null}];
+  }));
 }
 
 /** apod.nasa.gov archive page for a YYYY-MM-DD date. */
@@ -296,11 +326,9 @@ const plain = (html) => decode(html.replace(/<[^>]*>/g, ' ')).replace(/\s+/g, ' 
  */
 export function isPlaceholderApod(a) {
   if (!a) return true;
-  let host = '';
-  try { host = new URL(a.url).host; } catch { return true; }
-  if (/^nasa science$/i.test(a.title)) return true;
-  if (a.media_type === 'video') return !/(^|\.)(youtube(-nocookie)?\.com|vimeo\.com)$/.test(host) && !APOD_HOSTS.includes(host);
-  return !APOD_HOSTS.includes(host);
+  const url = mediaUrl(a.url);
+  if (!url || /^nasa science$/i.test(a.title)) return true;
+  return /(?:nasa[-_]?logo|nasa-logo|\/logo\.)/i.test(new URL(url).pathname);
 }
 
 /**

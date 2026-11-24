@@ -30,7 +30,7 @@ test('a refresh with too many failed sources exits non-zero and publishes nothin
   const dir = mkdtempSync(path.join(tmpdir(), 'nasa-'));
   const fix = path.join(dir, 'raw');
   cpSync(FIX, fix, { recursive: true });
-  for (const f of ['apod', 'neo', 'kp', 'eonet']) writeFileSync(path.join(fix, `${f}.json`), '{"broken":');
+  for (const f of ['apod-basic', 'neo', 'kp', 'eonet']) writeFileSync(path.join(fix, `${f}.json`), '{"broken":');
   const out = path.join(dir, 'out');
   const r = run(['--fixtures', fix, '--cache', path.join(dir, 'cache'), '--out', out, '--now', '2026-11-23T15:00:00Z']);
   assert.notEqual(r.status, 0);
@@ -58,18 +58,14 @@ test('one failed DONKI feed leaves the rest of the Sun section', () => {
   assert.equal(cap.sun.storms.length, 1);
 });
 
-test('placeholder APOD entries are replaced from apod.nasa.gov pages', () => {
+test('APOD source failure remains visible when other feeds can publish', () => {
   const dir = mkdtempSync(path.join(tmpdir(), 'nasa-'));
-  const fix = path.join(dir, 'raw');
-  cpSync(FIX, fix, { recursive: true });
-  const dates = ['2026-11-23', '2026-11-22', '2026-11-21', '2026-11-20', '2026-11-19', '2026-11-18', '2026-11-17'];
-  writeFileSync(path.join(fix, 'apod.json'), JSON.stringify(dates.map((date) => ({ date, title: 'NASA Science', media_type: 'image', explanation: 'same', url: 'https://science.nasa.gov/logo.png' }))));
-  const page = readFileSync(path.join(ROOT, 'tests', 'fixtures', 'apod-page.html'), 'utf8');
-  for (const d of dates.slice(0, 3)) writeFileSync(path.join(fix, `apod-${d}.html`), page);
+  const fix = path.join(dir, 'raw'); cpSync(FIX, fix, {recursive:true});
+  writeFileSync(path.join(fix, 'apod-basic.json'), JSON.stringify([{date:'2026-11-23', title:'NASA Science', url:'https://science.nasa.gov/logo.png'}]));
   const out = path.join(dir, 'out');
-  const r = run(['--fixtures', fix, '--cache', path.join(dir, 'cache'), '--out', out, '--now', '2026-11-23T15:00:00Z']);
+  const r = run(['--fixtures',fix,'--cache',path.join(dir,'cache'),'--out',out,'--now','2026-11-23T15:00:00Z']);
   assert.equal(r.status, 0, r.stderr);
-  const cap = JSON.parse(readFileSync(path.join(out, 'captures', '2026-11-23.json'), 'utf8'));
-  assert.deepEqual(cap.apod.map((a) => a.date), dates.slice(0, 3));
-  assert.ok(cap.apod.every((a) => a.title === 'Sample Nebula in Hydrogen & Oxygen'));
+  const index = JSON.parse(readFileSync(path.join(out, 'index.json'), 'utf8'));
+  assert.match(index.captures[0].status.apod, /no usable dated entries/);
+  assert.equal(index.captures[0].status.asteroids, 'ok');
 });

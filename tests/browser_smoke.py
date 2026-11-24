@@ -2,6 +2,7 @@
 from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+import json
 import shutil
 import subprocess
 import tempfile
@@ -27,6 +28,12 @@ def main():
             subprocess.run(["node", str(ROOT / "scripts/refresh.mjs"), "--fixtures", str(ROOT / "tests/fixtures/raw"),
                             "--cache", str(Path(temporary) / "cache"), "--out", str(site / "data"), "--now", now],
                            check=True, capture_output=True)
+        # Exercise a direct-video entry from the replacement APOD contract.
+        older = site / 'data/captures/2026-11-22.json'
+        payload = json.loads(older.read_text())
+        payload['apod'][0].update(media_type='video', url='https://assets.science.nasa.gov/sample.mp4',
+                                  page_url='https://science.nasa.gov/image-article/sample/', hdurl=None)
+        older.write_text(json.dumps(payload))
         server = ThreadingHTTPServer(("127.0.0.1", 0), partial(QuietHandler, directory=temporary))
         threading.Thread(target=server.serve_forever, daemon=True).start()
         try:
@@ -77,6 +84,11 @@ def main():
                 page.select_option("#capture", "2026-11-22")
                 page.wait_for_function("document.querySelector('#capture-note').textContent.includes('Nov 22')")
                 assert "capture=2026-11-22" in page.url
+                page.wait_for_selector('#apod video')
+                assert page.locator('#apod video').get_attribute('src').endswith('/sample.mp4')
+                assert page.locator('#apod video').get_attribute('controls') is not None
+                assert page.get_by_role('link', name='APOD article ↗').get_attribute('href') == 'https://science.nasa.gov/image-article/sample/'
+
 
                 page.screenshot(path=str(screenshots / "desktop.png"), full_page=True)
                 page.set_viewport_size({"width": 390, "height": 844})
