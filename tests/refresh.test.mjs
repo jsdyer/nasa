@@ -69,3 +69,35 @@ test('APOD source failure remains visible when other feeds can publish', () => {
   assert.match(index.captures[0].status.apod, /no usable dated entries/);
   assert.equal(index.captures[0].status.asteroids, 'ok');
 });
+
+
+test('live collection uses the migrated CCMC endpoint when the legacy mirror is unavailable', () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'nasa-donki-'));
+  const shim = path.join(dir, 'fetch.mjs'), out = path.join(dir, 'out');
+  writeFileSync(shim, `
+    import {readFileSync} from 'node:fs';
+    import path from 'node:path';
+    const fixtures = ${JSON.stringify(FIX)};
+    globalThis.fetch = async url => {
+      const u = new URL(url);
+      let name;
+      if (u.host === 'ccmc.gsfc.nasa.gov' && u.pathname.startsWith('/DONKI-API/get/')) {
+        name = u.pathname.split('/').pop().toLowerCase();
+      } else if (u.pathname.includes('/DONKI/') || u.host.startsWith('kauai.')) {
+        return new Response('retired endpoint', {status:404});
+      } else if (u.pathname.includes('apod-basic')) name = 'apod-basic';
+      else if (u.pathname.includes('/neo/')) name = 'neo';
+      else if (u.pathname.includes('/EPIC/')) name = 'epic';
+      else if (u.host === 'eonet.gsfc.nasa.gov') name = 'eonet';
+      else if (u.host === 'services.swpc.noaa.gov') name = 'kp';
+      else throw new Error('Unexpected source '+u.host+u.pathname);
+      return new Response(readFileSync(path.join(fixtures,name+'.json')), {status:200});
+    };
+  `);
+  const r = spawnSync(process.execPath, ['--import', shim, SCRIPT, '--cache', path.join(dir,'cache'), '--out', out, '--now', '2026-11-23T15:00:00Z'], {encoding:'utf8', env:{...process.env,NASA_API_KEY:'test-placeholder'}});
+  assert.equal(r.status, 0, r.stderr);
+  const capture = JSON.parse(readFileSync(path.join(out,'captures','2026-11-23.json')));
+  assert.equal(capture.status.sun, 'ok');
+  assert.equal(capture.sun.flares.length, 5);
+  assert.deepEqual(capture.sun.missing, {});
+});

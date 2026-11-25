@@ -43,8 +43,8 @@ async function get(name, url) {
     await new Promise((r) => setTimeout(r, 4000 * attempt));
   }
 }
-// DONKI: api.nasa.gov mirror, with NASA CCMC's own web service (no key) as a fallback.
-const donki = (type, params) => `https://kauai.ccmc.gsfc.nasa.gov/DONKI/WS/get/${type}?${new URLSearchParams(params)}`;
+// DONKI migrated in September 2026: use the canonical keyless CCMC API first.
+const donki = (type, params) => `https://ccmc.gsfc.nasa.gov/DONKI-API/get/${type}?${new URLSearchParams(params)}`;
 const nasa = (p, params) => `https://api.nasa.gov${p}?${new URLSearchParams({ ...params, api_key: KEY })}`;
 
 const fetchers = {
@@ -60,10 +60,10 @@ const fetchers = {
   asteroids: async () => M.normalizeNeoFeed(await get('neo', nasa('/neo/rest/v1/feed', { start_date: day(0), end_date: day(config.asteroid_days - 1) }))),
   sun: async () => {
     const range = { startDate: day(-config.space_weather_days), endDate: day(0) };
-    // Try api.nasa.gov first, then CCMC directly; report every host's error if both fail.
+    // Prefer CCMC directly, with the API mirror as fallback; retain every failure.
     const one = async (type) => {
       const errors = [];
-      for (const url of [nasa(`/DONKI/${type}`, range), donki(type, range)]) {
+      for (const url of [donki(type, range), nasa(`/DONKI/${type}`, range)]) {
         try { return await get(type.toLowerCase(), url); } catch (e) { errors.push(`${new URL(url).host}: ${describe(e)}`); if (fixtures) break; }
       }
       throw new Error(`${type} ${errors.join('; ')}`);
