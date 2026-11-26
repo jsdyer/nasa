@@ -18,10 +18,15 @@
   <main id="main">
     <p class="eyebrow">Sky &amp; photography · NASA open data</p>
     <h1>{{TITLE}}</h1>
-    <p class="intro">{{DESCRIPTION}}</p>
+    <p class="intro">Explore a dated NASA and NOAA briefing. Pick a topic to check the aurora outlook for a place, inspect asteroid flybys or open the astronomy picture.</p>
+    <nav class="briefing-topics" aria-label="Briefing topics">
+      <a href="#aurora">Check the aurora outlook</a>
+      <a href="#asteroids">Inspect asteroid flybys</a>
+      <a href="#apod">Open the astronomy picture</a>
+    </nav>
 
     <div class="capture-bar">
-      <label for="capture">Capture</label>
+      <label for="capture">Briefing date</label>
       <select id="capture" disabled><option>Loading…</option></select>
       <p id="capture-note" role="status" aria-live="polite"></p>
     </div>

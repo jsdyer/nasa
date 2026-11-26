@@ -92,6 +92,19 @@ def main():
 
                 page.screenshot(path=str(screenshots / "desktop.png"), full_page=True)
                 page.set_viewport_size({"width": 390, "height": 844})
+                page.evaluate("window.scrollTo(0, 0)")
+                outlook = page.get_by_role("link", name="Check the aurora outlook")
+                assert outlook.bounding_box()["y"] < 844
+                outlook.click()
+                assert page.url.endswith("#aurora")
+                assert page.locator("#aurora-title").bounding_box()["y"] < 200
+                page.get_by_role("link", name="Inspect asteroid flybys").click()
+                assert page.url.endswith("#asteroids")
+                assert page.locator("#ast-chart .neo").count() > 0
+                page.get_by_role("link", name="Open the astronomy picture").click()
+                assert page.url.endswith("#apod")
+                assert page.locator("#apod video").is_visible()
+                page.evaluate("window.scrollTo(0, 0)")
                 assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth")
                 page.screenshot(path=str(screenshots / "mobile.png"), full_page=True)
                 assert not errors, errors

@@ -21,6 +21,8 @@ section { padding: clamp(1rem, 3vw, 2rem); margin-block: 2rem; background: var(-
 .unavailable { color: var(--muted); font-style: italic; }
 code { font-family: var(--mono); font-size: .9em; }
 
+.briefing-topics { display: flex; flex-wrap: wrap; gap: .6rem 1.25rem; margin: 1rem 0 1.4rem; }
+.briefing-topics a { font-weight: 650; }
 .capture-bar { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem 1rem; padding: .8rem 1rem; border: 1px solid var(--line); background: var(--surface); }
 .capture-bar label { font-weight: 650; }
 .capture-bar p { margin: 0; color: var(--muted); font-size: .9rem; }
